@@ -1,7 +1,7 @@
 #include <ESP8266WiFi.h>
 #include <FirebaseESP8266.h>
 #include <NTPClient.h>
-#include <WiFiUdp.h>
+#include <WiFiUDP.h>
 
 // ---------- WiFi ----------
 #define WIFI_SSID "OreoInvertido"
@@ -24,13 +24,13 @@ WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000);
 
 int humedadAnterior = 50;
-int luxAnterior = 900;
 
 void setup() {
   Serial.begin(9600);
   pinMode(RELAY_PIN, OUTPUT);
   digitalWrite(RELAY_PIN, LOW);
   pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(SENSOR_LUZ, INPUT);
 
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("Conectando a WiFi");
@@ -55,7 +55,7 @@ void setup() {
 
 void loop() {
   int humedad = medirHumedadSimulada();
-  int lux = medirLuzSimulada();
+  int luz = digitalRead(SENSOR_LUZ);  // 0 = buena luz, 1 = poca luz
 
   if (humedad < 45) {
     Serial.println("💧 Suelo seco - Encendiendo bomba");
@@ -71,7 +71,7 @@ void loop() {
 
   FirebaseJson json;
   json.set("humedad", humedad);
-  json.set("luz", lux);
+  json.set("luz", luz);
   json.set("timestamp", timestamp);
 
   String path = "/sensorReadings";
@@ -86,22 +86,9 @@ void loop() {
   delay(10000);
 }
 
-// ---------- Simulación ----------
+// ---------- Simulación de humedad ----------
 int medirHumedadSimulada() {
   int variacion = random(-5, 6);
   humedadAnterior = constrain(humedadAnterior + variacion, 30, 80);
   return humedadAnterior;
 }
-
-int medirLuzSimulada() {
-  int luzDigital = digitalRead(SENSOR_LUZ);
-  int variacion = random(-50, 51);
-  if (luzDigital == 1) {
-    luxAnterior = constrain(luxAnterior + variacion, 700, 1200);
-  } else {
-    luxAnterior = constrain(luxAnterior + variacion, 0, 400);
-  }
-  return luxAnterior;
-}
-
-

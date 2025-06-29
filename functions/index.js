@@ -77,7 +77,8 @@ exports.telegramWebhook = onRequest({ secrets: [TELEGRAM_BOT_TOKEN] }, async (re
             if (!snapshot.empty) {
               const data = snapshot.docs[0].data();
               const fecha = formatearFecha(data.timestamp);
-              await bot.sendMessage(chatId, `🌞 Luz actual: ${data.luz} Lux\n🕒 Última lectura: ${fecha}`);
+              const nivelLuz = data.luz === 0 ? "💡 Buena luz (0)" : "🌑 Poca luz (1)";
+                await bot.sendMessage(chatId, `🌞 Luz actual: ${nivelLuz}\n🕒 Última lectura: ${fecha}`);
             } else {
               await bot.sendMessage(chatId, "No hay lecturas de luz aún.");
             }
@@ -106,7 +107,7 @@ exports.telegramWebhook = onRequest({ secrets: [TELEGRAM_BOT_TOKEN] }, async (re
             if (!snapshot.empty) {
               const data = snapshot.docs[0].data();
               const humedad = data.humedad !== undefined ? `${data.humedad}%` : "N/A";
-              const luz = data.luz !== undefined ? `${data.luz} Lux` : "N/A";
+              const luz = data.luz === 0 ? "Buena luz (0)" : "🌑 Poca luz (1)";
               const fecha = formatearFecha(data.timestamp);
               await bot.sendMessage(chatId, `📊 Estado de la planta:\n- 💧 Humedad: ${humedad}\n- 🌞 Luz: ${luz}\n- 🕒 Última lectura: ${fecha}`);
             } else {

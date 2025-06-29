@@ -246,7 +246,7 @@ const App = () => {
           <div className="bg-white rounded-lg p-6 shadow-xl border border-gray-100">
             <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center">
               <Sun className="h-6 w-6 text-yellow-500 mr-2" />
-              Luz Recibida (Lux)
+                Nivel de Luz (0 = buena, 1 = poca)
             </h2>
             <div className="h-80 w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -255,9 +255,19 @@ const App = () => {
                   <XAxis dataKey="name" stroke="#666" />
                   <YAxis stroke="#666" />
                   <Tooltip
-                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc', borderRadius: '8px' }}
-                    labelStyle={{ color: '#333' }}
-                    itemStyle={{ color: '#ffa500' }}
+                    content={({ payload, label }) => {
+                      if (payload && payload.length > 0) {
+                        const luzValor = payload[0].value;
+                        const textoLuz = luzValor === 0 ? "Buena luz (0)" : "Poca luz (1)";
+                        return (
+                          <div style={{ backgroundColor: '#fff', border: '1px solid #ccc', padding: '10px', borderRadius: '8px' }}>
+                            <p style={{ margin: 0 }}><strong>{label}</strong></p>
+                            <p style={{ margin: 0 }}>{textoLuz}</p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
                   />
                   <Line
                     type="monotone"
