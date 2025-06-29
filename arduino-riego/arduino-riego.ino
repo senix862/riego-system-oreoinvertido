@@ -21,8 +21,7 @@ FirebaseAuth auth;
 FirebaseConfig config;
 
 WiFiUDP ntpUDP;
-//NTPClient timeClient(ntpUDP, "pool.ntp.org", -3 * 3600, 60000);
-NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000);  // UTC cada 60 seg
+NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000);
 
 int humedadAnterior = 50;
 int luxAnterior = 900;
@@ -46,7 +45,7 @@ void setup() {
     timeClient.forceUpdate();
   }
 
-  // Configurar Firebase
+  // Configuración de Firebase
   config.host = FIREBASE_HOST;
   config.signer.tokens.legacy_token = FIREBASE_AUTH;
   Firebase.begin(&config, &auth);

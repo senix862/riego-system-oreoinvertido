@@ -1,12 +1,11 @@
 const admin = require('firebase-admin');
 const fs = require('fs');
 
-// ⚠️ Asegurate de poner la ruta correcta al archivo de credenciales
 const serviceAccount = require('./serviceAccountKey.json');
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
-  projectId: serviceAccount.project_id  // 👈 obligatorio si el error te aparece
+  projectId: serviceAccount.project_id
 });
 
 const db = admin.firestore();
@@ -20,7 +19,7 @@ async function uploadData() {
     const batch = db.batch();
 
     data.forEach(entry => {
-      const docRef = db.collection('mediciones').doc(); // coleccion "mediciones"
+      const docRef = db.collection('mediciones').doc();
       batch.set(docRef, entry);
     });
 

@@ -126,7 +126,6 @@ exports.telegramWebhook = onRequest({ secrets: [TELEGRAM_BOT_TOKEN] }, async (re
   }
 });
 
-// ✅ Función auxiliar corregida
 function formatearFecha(timestamp) {
   if (!timestamp || !timestamp.toDate) return "Desconocida";
   const date = timestamp.toDate();
@@ -136,7 +135,6 @@ function formatearFecha(timestamp) {
   });
 }
 
-// ✅ Configurar Webhook
 exports.setWebhook = onRequest({ secrets: [TELEGRAM_BOT_TOKEN] }, async (req, res) => {
   const TelegramBot = require("node-telegram-bot-api");
   const botToken = TELEGRAM_BOT_TOKEN.value();
@@ -161,7 +159,7 @@ exports.setWebhook = onRequest({ secrets: [TELEGRAM_BOT_TOKEN] }, async (req, re
   }
 });
 
-// ✅ Sincronizar datos de Realtime DB a Firestore
+// Sincronizar datos de Realtime DB a Firestore
 exports.syncSensorData = functions.database.ref('/sensorReadings/{pushId}')
   .onCreate(async (snapshot, context) => {
     const data = snapshot.val();
@@ -170,7 +168,7 @@ exports.syncSensorData = functions.database.ref('/sensorReadings/{pushId}')
       await db.collection('mediciones').add({
         humedad: data.humedad || null,
         luz: data.luz || null,
-        timestamp: admin.firestore.Timestamp.now()  // 🔥 timestamp válido de Firestore
+        timestamp: admin.firestore.Timestamp.now()
       });
       console.log("Dato sincronizado a Firestore. ✅");
     } catch (error) {
