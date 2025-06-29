@@ -9,90 +9,120 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import { Droplets, Sun, Activity, Settings, RefreshCw } from 'lucide-react';
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, query, orderBy, limit, getDocs, addDoc, serverTimestamp } from "firebase/firestore";
+
+const firebaseConfig = {
+  apiKey: "TU_API_KEY",
+  authDomain: "sriegosystem-oreoinvertido.firebaseapp.com",
+  projectId: "sriegosystem-oreoinvertido",
+  storageBucket: "sriegosystem-oreoinvertido.appspot.com",
+  messagingSenderId: "TU_MESSAGING_SENDER_ID",
+  appId: "TU_APP_ID"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 const App = () => {
-  // Estado humedad y luz (datos simulados)
   const [humedadData, setHumedadData] = useState([]);
   const [luzData, setLuzData] = useState([]);
-  const [message, setMessage] = useState(''); // Mensajes para el usuario
+  const [message, setMessage] = useState('');
 
-  // Función para simular datos de humedad y luz
   useEffect(() => {
-    const generateDummyData = () => {
-      const now = new Date();
-      const newHumedadData = [];
-      const newLuzData = [];
+    const fetchDatos = async () => {
+      try {
+        const q = query(collection(db, "mediciones"), orderBy("timestamp", "desc"), limit(7));
+        const querySnapshot = await getDocs(q);
 
-      for (let i = 0; i < 7; i++) { // Últimas 7 horas/puntos
-        const hour = (now.getHours() - i + 24) % 24; // Asegura horas válidas
-        const minute = now.getMinutes();
-        const timeLabel = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        const humedad = [];
+        const luz = [];
 
-        newHumedadData.unshift({
-          name: timeLabel,
-          Humedad: Math.floor(Math.random() * (90 - 40 + 1)) + 40 // Humedad entre 40 y 90
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          const date = data.timestamp?.toDate?.() ?? new Date();
+          const hora = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+          humedad.unshift({ name: hora, Humedad: data.humedad ?? 0 });
+          luz.unshift({ name: hora, Luz: data.luz ?? 0 });
         });
-        newLuzData.unshift({
-          name: timeLabel,
-          Luz: Math.floor(Math.random() * (5000 - 1000 + 1)) + 1000 // Luz entre 1000 y 5000 lux
-        });
+
+        setHumedadData(humedad);
+        setLuzData(luz);
+      } catch (error) {
+        console.error("Error al obtener datos de Firestore:", error);
       }
-      setHumedadData(newHumedadData);
-      setLuzData(newLuzData);
     };
 
-    generateDummyData();
-    // Actualizar datos cada 5 minutos para simular cambios
-    const interval = setInterval(generateDummyData, 5 * 60 * 1000);
-    return () => clearInterval(interval); // Limpiar al desmontar
+    fetchDatos();
   }, []);
 
-  // Función para simular la activación del riego
-  const handleActivarRiego = () => {
+  const handleActivarRiego = async () => {
     setMessage('Activando sistema de riego...');
-    setTimeout(() => {
+    try {
+      await addDoc(collection(db, 'commands'), {
+        commandType: 'regar',
+        status: 'pending',
+        timestamp: serverTimestamp(),
+        requester: 'web'
+      });
       setMessage('Sistema de riego activado. Verificando nivel de humedad...');
+      handleRefreshData();
       handleObtenerHumedad();
-    }, 2000);
-    
-  };
 
-  // Función para simular la obtención de humedad actual
-  const handleObtenerHumedad = () => {
-    setMessage('Obteniendo humedad actual...');
-    setTimeout(() => {
-      const currentHumedad = Math.floor(Math.random() * (90 - 40 + 1)) + 40;
-      setMessage(`Humedad actual del suelo: ${currentHumedad}%`);
-    }, 1500);
-  };
+      setTimeout(() => {
+            setMessage('Datos actualizados.');
+          }, 2000);
 
-  // Función para simular la actualización de datos
-  const handleRefreshData = () => {
-    setMessage('Actualizando datos...');
-    // Forzamos una nueva generación de datos
-    const now = new Date();
-    const newHumedadData = [];
-    const newLuzData = [];
-
-    for (let i = 0; i < 7; i++) {
-      const hour = (now.getHours() - i + 24) % 24;
-      const minute = now.getMinutes();
-      const timeLabel = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-
-      newHumedadData.unshift({
-        name: timeLabel,
-        Humedad: Math.floor(Math.random() * (90 - 40 + 1)) + 40
-      });
-      newLuzData.unshift({
-        name: timeLabel,
-        Luz: Math.floor(Math.random() * (5000 - 1000 + 1)) + 1000
-      });
+    } catch (error) {
+      console.error("Error al enviar comando de riego:", error);
+      setMessage("Error al activar el riego.");
     }
-    setHumedadData(newHumedadData);
-    setLuzData(newLuzData);
+  };
+
+  const handleObtenerHumedad = async () => {
+    setMessage('Obteniendo humedad actual...');
+    try {
+      const q = query(collection(db, "mediciones"), orderBy("timestamp", "desc"), limit(1));
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        const data = querySnapshot.docs[0].data();
+        setMessage(`Humedad actual del suelo: ${data.humedad ?? '--'}%`);
+      } else {
+        setMessage("No hay lecturas disponibles.");
+      }
+    } catch (error) {
+      console.error("Error al obtener humedad:", error);
+      setMessage("Error al obtener humedad.");
+    }
     setTimeout(() => {
+      handleRefreshData();
+        }, 3000);
+  };
+
+  const handleRefreshData = async () => {
+    setMessage('Actualizando datos...');
+    try {
+      const q = query(collection(db, "mediciones"), orderBy("timestamp", "desc"), limit(7));
+      const querySnapshot = await getDocs(q);
+
+      const humedad = [];
+      const luz = [];
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        const date = data.timestamp?.toDate?.() ?? new Date();
+        const hora = `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+        humedad.unshift({ name: hora, Humedad: data.humedad ?? 0 });
+        luz.unshift({ name: hora, Luz: data.luz ?? 0 });
+      });
+
+      setHumedadData(humedad);
+      setLuzData(luz);
       setMessage('Datos actualizados.');
-    }, 1000);
+    } catch (error) {
+      console.error("Error al refrescar datos:", error);
+      setMessage('Error al actualizar datos.');
+    }
   };
 
   return (
@@ -121,7 +151,7 @@ const App = () => {
             <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-2">
               Sistema de Riego <span className="text-emerald-600">Oreo Invertido</span>
             </h1>
-            <p className="text-lg text-gray-600">Monitoreo y Control Inteligente de tu Cultivo - <strong>Dí NO a las drogas</strong></p>
+            <p className="text-lg text-gray-600">Monitoreo y control inteligente de tu cultivo</p>
             <p className="text-lg text-gray-600">Yanzón - Navarro - Jalowicki</p>
             <p className="text-lg text-gray-600">Profesor: Matias Loiseau</p>
           </div>
@@ -245,9 +275,19 @@ const App = () => {
         </section>
       </div>
       {/* Footer */}
-      <footer className="mt-10 text-center text-gray-500 text-sm">
-        <p>&copy; {new Date().getFullYear()} Sistema de Riego - @OreoInvertido. Todos los derechos reservados.</p>
+      <footer className="mt-10 text-center text-gray-500 text-sm flex flex-col items-center space-y-4">
+        <a
+          href="https://t.me/RiegoOreo_bot"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="bg-telegramBlue hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-full shadow-md transition duration-300"
+          style={{ backgroundColor: '#229ED9' }}
+        >
+          Consultar al Bot en Telegram 🤖 
+        </a>
+          <p>&copy; {new Date().getFullYear()} Sistema de Riego - @OreoInvertido. Todos los derechos reservados.</p>
       </footer>
+
     </div>
   );
 };
