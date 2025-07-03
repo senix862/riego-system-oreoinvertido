@@ -198,13 +198,13 @@ const App = () => {
           <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6 shadow-md flex flex-col items-center justify-center text-center">
             <h2 className="text-2xl font-semibold text-indigo-800 mb-4">Estado del Sistema</h2>
             <p className="text-gray-700 text-lg mb-2">
-              <span className="font-bold">Humedad del Suelo:</span> {humedadData.length > 0 ? humedadData[humedadData.length - 1].Humedad : '--'}%
+              <span className="font-bold">Humedad del Suelo:</span> {humedadData.length > 0 ? humedadData[humedadData.length - 1].Humedad : '--'}
             </p>
             <p className="text-gray-700 text-lg mb-2">
               <span className="font-bold">Intensidad de Luz:</span> {luzData.length > 0 ? luzData[luzData.length - 1].Luz : '--'} Lux
             </p>
             <p className="text-gray-700 text-lg">
-              <span className="font-bold">Estado del Riego:</span> <span className="text-red-600 font-bold">Inactivo</span> (automático)
+              <span className="font-bold">Estado del Riego:</span> <span className="text-green-600 font-bold">Activo</span> (automático)
             </p>
           </div>
         </section>
@@ -215,7 +215,7 @@ const App = () => {
           <div className="bg-white rounded-lg p-6 shadow-xl border border-gray-100">
             <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center">
               <Droplets className="h-6 w-6 text-cyan-600 mr-2" />
-              Humedad del Suelo (%)
+              Humedad del Suelo
             </h2>
             <div className="h-80 w-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -239,7 +239,7 @@ const App = () => {
                 </LineChart>
               </ResponsiveContainer>
             </div>
-            <p className="text-sm text-gray-500 mt-4">Datos de humedad en las últimas horas.</p>
+            <p className="text-sm text-gray-500 mt-4">Datos de humedad en las últimas horas. Valores de 0-500 Húmedo, 500-1023 Seco</p>
           </div>
 
           {/* Luz Recibida */}
@@ -253,7 +253,12 @@ const App = () => {
                 <LineChart data={luzData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
                   <XAxis dataKey="name" stroke="#666" />
-                  <YAxis stroke="#666" />
+                  <YAxis 
+                      stroke="#666" 
+                      domain={[0, 1]}
+                      ticks={[0, 1]}
+                      tickFormatter={(value) => value === 0 ? 'Poca' : 'Buena'}
+                    />
                   <Tooltip
                     content={({ payload, label }) => {
                       if (payload && payload.length > 0) {

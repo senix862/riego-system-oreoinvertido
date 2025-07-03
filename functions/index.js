@@ -5,6 +5,7 @@ const { defineSecret } = require("firebase-functions/params");
 
 admin.initializeApp();
 const db = admin.firestore();
+const rtdb = admin.database();
 
 const TELEGRAM_BOT_TOKEN = defineSecret("TELEGRAM_BOT_TOKEN");
 
@@ -39,7 +40,7 @@ exports.telegramWebhook = onRequest({ secrets: [TELEGRAM_BOT_TOKEN] }, async (re
       switch (text) {
         case "/start":
           await bot.sendMessage(chatId, "🌱 ¡Hola! Soy *OreoInvertido*, tu sistema de riego de confianza. Comandos disponibles:\n\n" +
-            "/humedad - Ver última humedad\n" +
+            "/humedad - Ver última humedad (>=500 -> Seco, <500 -> Humedo).\n" +
             "/luz - Ver nivel de luz\n" +
             "/estado - Ver estado general\n" +
             "/regar - Activar riego\n\n" +
@@ -62,7 +63,7 @@ exports.telegramWebhook = onRequest({ secrets: [TELEGRAM_BOT_TOKEN] }, async (re
             if (!snapshot.empty) {
               const data = snapshot.docs[0].data();
               const fecha = formatearFecha(data.timestamp);
-              await bot.sendMessage(chatId, `💧 Humedad actual: ${data.humedad}%\n🕒 Última lectura: ${fecha}`);
+              await bot.sendMessage(chatId, `Humedad actual 💧: ${data.humedad}\n🕒 Última lectura: ${fecha}`);
             } else {
               await bot.sendMessage(chatId, "No hay lecturas de humedad aún.");
             }
@@ -78,7 +79,7 @@ exports.telegramWebhook = onRequest({ secrets: [TELEGRAM_BOT_TOKEN] }, async (re
               const data = snapshot.docs[0].data();
               const fecha = formatearFecha(data.timestamp);
               const nivelLuz = data.luz === 0 ? "💡 Buena luz (0)" : "🌑 Poca luz (1)";
-                await bot.sendMessage(chatId, `🌞 Luz actual: ${nivelLuz}\n🕒 Última lectura: ${fecha}`);
+              await bot.sendMessage(chatId, `🌞 Luz actual: ${nivelLuz}\n🕒 Última lectura: ${fecha}`);
             } else {
               await bot.sendMessage(chatId, "No hay lecturas de luz aún.");
             }
@@ -106,7 +107,7 @@ exports.telegramWebhook = onRequest({ secrets: [TELEGRAM_BOT_TOKEN] }, async (re
             const snapshot = await db.collection('mediciones').orderBy('timestamp', 'desc').limit(1).get();
             if (!snapshot.empty) {
               const data = snapshot.docs[0].data();
-              const humedad = data.humedad !== undefined ? `${data.humedad}%` : "N/A";
+              const humedad = data.humedad !== undefined ? `${data.humedad}` : "N/A";
               const luz = data.luz === 0 ? "Buena luz (0)" : "🌑 Poca luz (1)";
               const fecha = formatearFecha(data.timestamp);
               await bot.sendMessage(chatId, `📊 Estado de la planta:\n- 💧 Humedad: ${humedad}\n- 🌞 Luz: ${luz}\n- 🕒 Última lectura: ${fecha}`);
@@ -160,11 +161,10 @@ exports.setWebhook = onRequest({ secrets: [TELEGRAM_BOT_TOKEN] }, async (req, re
   }
 });
 
-// Sincronizar datos de Realtime DB a Firestore
+// 🔄 Realtime DB ← sensorReadings desde ESP8266
 exports.syncSensorData = functions.database.ref('/sensorReadings/{pushId}')
   .onCreate(async (snapshot, context) => {
     const data = snapshot.val();
-
     try {
       await db.collection('mediciones').add({
         humedad: data.humedad || null,
@@ -174,5 +174,24 @@ exports.syncSensorData = functions.database.ref('/sensorReadings/{pushId}')
       console.log("Dato sincronizado a Firestore. ✅");
     } catch (error) {
       console.error("Error al sincronizar ❌:", error);
+    }
+  });
+
+// 🔁 Firestore → Realtime DB para comandos "regar"
+exports.syncCommandsToRTDB = functions.firestore
+  .document('commands/{docId}')
+  .onCreate(async (snap, context) => {
+    const data = snap.data();
+    if (data.commandType === 'regar' && data.status === 'pending') {
+      try {
+        await rtdb.ref('/commands/regar').set({
+          status: 'pending',
+          from: data.requester || 'web',
+          timestamp: new Date().toISOString()
+        });
+        console.log("✅ Comando sincronizado de Firestore a RTDB.");
+      } catch (error) {
+        console.error("❌ Error al sincronizar comando:", error);
+      }
     }
   });
